@@ -28,7 +28,7 @@ have_header("sqlext.h") || begin
   puts "ERROR: sqlext.h not found"
   exit 1
 end
-testdlopen = enable_config("dlopen", true)
+testdlopen = enable_config("dlopen", false)
 begin
   if PLATFORM !~ /(mingw|cygwin)/ then
     header = "sqltypes.h"

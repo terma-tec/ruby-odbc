@@ -1,6 +1,21 @@
 ODBC binding for Ruby
 ---------------------
 
+Thu Sep 16 2010 version 0.99992 released
+
+	* ODBC::Statement.each/each_hash now output arrays when
+	  invoked without block
+	* column keys in result hashes now are cached/recycled Ruby strings
+	* added ODBC::Database methods use_time/use_utc to directly
+	  output Ruby Time/Date objects
+	* added encoding support in the UTF8 variant for Ruby >= 1.9
+	* added module constant ODBC::UTF8 to indicate variant of module
+	* fixes for M$SQL server reporting zero column sizes
+	  and unknown data types for varchar(strmax) columns
+	* eliminated compiler warnings
+	* use StringValueCStr instead of STR2CSTR (Ruby >= 1.9.1)
+	* small change for decision when to use SQLGetData() loop
+
 Sun Apr 25 2010 version 0.99991 released
 
 	* detect HAVE_LONG_LONG for builds with unixODBC

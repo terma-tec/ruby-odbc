@@ -48,7 +48,7 @@ have_header("sqlext.h") || begin
   puts "ERROR: sqlext.h not found"
   exit 1
 end
-testdlopen = enable_config("dlopen", true)
+testdlopen = enable_config("dlopen", false)
 begin
   if PLATFORM !~ /(mingw|cygwin)/ then
     header = "sqltypes.h"
@@ -134,6 +134,7 @@ elsif (testdlopen && PLATFORM !~ /(macos|darwin)/ && CONFIG["CC"] =~ /gcc/ && ha
   have_func_nolink("SQLReadFileDSNW", "odbcinst.h")
   have_func_nolink("SQLInstallerErrorW", "odbcinst.h")
 else
+  $CPPFLAGS+=" -DUNICODE -D_UNICODE"
   have_library("odbc", "SQLAllocConnect") ||
     have_library("iodbc", "SQLAllocConnect")
   ($have_odbcinst_h &&

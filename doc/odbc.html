@@ -27,7 +27,7 @@
   <body>
     <h1><a name="reference">Ruby ODBC Reference</a></h1>
     <div class = "lastmodifed">
-      Last update: Fri, 15 January 2010
+      Last update: Thu, 16 September 2010
     </div>
     <hr>
     <div>
@@ -101,6 +101,12 @@
 	  </dl>
       </dl>
       <h3>constants:</h3>
+      <p>
+        The boolean constant <var>UTF8</var> reports the character encoding
+        of the module. If it is <code>true</code>, the UTF-8 variant of
+        the module is in use, and string data is automatically converted
+        to/from Unicode.
+      </p>
       <p>
 	Some constants of the ODBC API are defined in order to set connection
 	options, to deal with SQL data types, and to obtain database meta data.
@@ -687,6 +693,19 @@ aproc.statement.drop</pre>
 	<dd>Releases the resources of all open
 	  <a href="#ODBC::Statement">ODBC::Statement</a>s in this
 	  database connection.
+	<dt><a name="use_time"><code>use_time[=<var>bool</var>]</code></a>
+	<dd>Sets or queries the mapping of SQL_DATE, SQL_TIME, and
+	  SQL_TIMESTAMP data types to Ruby objects. When true,
+	  SQL_DATE is mapped to Ruby Date objects, SQL_TIME and
+	  SQL_TIMESTAMP are mapped to Ruby Time objects. Otherwise (default)
+          <a href="#ODBC::Date">ODBC::Date</a>,
+          <a href="#ODBC::Time">ODBC::Time</a>, and
+          <a href="#ODBC::Time">ODBC::TimeStamp</a> are used.
+	<dt><a name="use_utc"><code>use_utc[=<var>bool</var>]</code></a>
+	<dd>Sets or queries the timezone applied on SQL_DATE, SQL_TIME, and
+	  SQL_TIMESTAMP data types to Ruby objects. When true,
+	  Ruby Date and Time objects are represented in UTC, when
+	  false (default) in the local timezone.
       </dl>
       <h3>singleton methods:</h3>
       <dl>
@@ -738,11 +757,17 @@ aproc.statement.drop</pre>
 	  <td>T_FIXNUM, T_BIGNUM</td></tr>
 	<tr><td>SQL_FLOAT, SQL_DOUBLE, SQL_REAL</td><td>T_FLOAT</td></tr>
 	<tr><td>SQL_DATE, SQL_TYPE_DATE</td>
-	  <td><a href="#ODBC::Date">ODBC::Date</a></td></tr>
+	  <td><a href="#ODBC::Date">ODBC::Date</a> or Date,
+	   see <a href="#use_time">ODBC::Database.use_time</a>
+	  </td></tr>
 	<tr><td>SQL_TIME, SQL_TYPE_TIME</td>
-	  <td><a href="#ODBC::Time">ODBC::Time</a></td></tr>
+	  <td><a href="#ODBC::Time">ODBC::Time</a> or Time,
+	   see <a href="#use_time">ODBC::Database.use_time</a>
+	  </td></tr>
 	<tr><td>SQL_TIMESTAMP, SQL_TYPE_TIMESTAMP</td>
-	  <td><a href="#ODBC::TimeStamp">ODBC::TimeStamp</a></td></tr>
+	  <td><a href="#ODBC::TimeStamp">ODBC::TimeStamp</a> or Time,
+	   see <a href="#use_time">ODBC::Database.use_time</a>
+	  </td></tr>
 	<tr><td>all others</td><td>T_STRING</td></tr>
       </table>
       <h3>super class:</h3>
