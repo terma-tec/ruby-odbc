@@ -1,6 +1,6 @@
 /*
  * ODBC-Ruby binding
- * Copyright (c) 2001-2010 Christian Werner <chw@ch-werner.de>
+ * Copyright (c) 2001-2011 Christian Werner <chw@ch-werner.de>
  * Portions copyright (c) 2004 Ryszard Niewisiewicz <micz@fibernet.pl>
  * Portions copyright (c) 2006 Carl Blakeley <cblakeley@openlinksw.co.uk>
  *
@@ -8,7 +8,7 @@
  * and redistribution of this file and for a
  * DISCLAIMER OF ALL WARRANTIES.
  *
- * $Id: odbc.c,v 1.70 2010/09/16 06:52:23 chw Exp chw $
+ * $Id: odbc.c,v 1.72 2011/01/15 08:02:55 chw Exp chw $
  */
 
 #undef ODBCVER
@@ -251,7 +251,6 @@ static ID IDFixnum;
 static ID IDtable_names;
 static ID IDnew;
 static ID IDnow;
-static ID IDlocal;
 static ID IDname;
 static ID IDtable;
 static ID IDtype;
@@ -276,6 +275,7 @@ static ID IDencode;
 static ID IDparse;
 static ID IDutc;
 static ID IDlocal;
+static ID IDto_s;
 
 /*
  * Modes for dbc_info
@@ -334,6 +334,14 @@ static VALUE stmt_each(VALUE self);
 static VALUE stmt_each_hash(int argc, VALUE *argv, VALUE self);
 static VALUE stmt_close(VALUE self);
 static VALUE stmt_drop(VALUE self);
+
+/*
+ * Column name buffers on statement.
+ */
+
+static const char *colnamebuf[] = {
+    "@_c0", "@_c1", "@_c2", "@_c3"
+};
 
 /*
  * Macro to align buffers.
@@ -800,20 +808,22 @@ free_dbc(DBC *p)
 }
 
 static void
-free_stmt_sub(STMT *q)
+free_stmt_sub(STMT *q, int withp)
 {
-    if (q->paraminfo != NULL) {
-	int i;
+    int i;
 
-	for (i = 0; i < q->nump; i++) {
-	    if (q->paraminfo[i].outbuf != NULL) {
-		xfree(q->paraminfo[i].outbuf);
+    if (withp) {
+	if (q->paraminfo != NULL) {
+	    for (i = 0; i < q->nump; i++) {
+		if (q->paraminfo[i].outbuf != NULL) {
+		    xfree(q->paraminfo[i].outbuf);
+		}
 	    }
+	    xfree(q->paraminfo);
+	    q->paraminfo = NULL;
 	}
-	xfree(q->paraminfo);
-	q->paraminfo = NULL;
+	q->nump = 0;
     }
-    q->nump = 0;
     q->ncols = 0;
     if (q->coltypes != NULL) {
 	xfree(q->coltypes);
@@ -842,9 +852,11 @@ free_stmt_sub(STMT *q)
 	if (v != Qnil) {
 	    rb_iv_set(q->self, "@_h", rb_hash_new());
 	}
-	v = rb_iv_get(q->self, "@_c");
-	if (v != Qnil) {
-	    rb_iv_set(q->self, "@_c", rb_hash_new());
+	for (i = 0; i < 4; i++) {
+	    v = rb_iv_get(q->self, colnamebuf[i]);
+	    if (v != Qnil) {
+		rb_iv_set(q->self, colnamebuf[i], rb_hash_new());
+	    }
 	}
     }
 }
@@ -880,7 +892,7 @@ free_stmt(STMT *q)
     VALUE qself = q->self;
 
     q->self = q->dbc = Qnil;
-    free_stmt_sub(q);
+    free_stmt_sub(q, 1);
     tracemsg(2, fprintf(stderr, "ObjFree: STMT %p\n", q););
     if (q->hstmt != SQL_NULL_HSTMT) {
 	/* Issue warning message. */
@@ -3402,6 +3414,7 @@ wrap_stmt(VALUE dbc, DBC *p, SQLHSTMT hstmt, STMT **qp)
 {
     VALUE stmt = Qnil;
     STMT *q;
+    int i;
 
     stmt = Data_Make_Struct(Cstmt, STMT, mark_stmt, free_stmt, q);
     tracemsg(2, fprintf(stderr, "ObjAlloc: STMT %p\n", q););
@@ -3419,7 +3432,9 @@ wrap_stmt(VALUE dbc, DBC *p, SQLHSTMT hstmt, STMT **qp)
     q->usef = 0;
     rb_iv_set(q->self, "@_a", rb_ary_new());
     rb_iv_set(q->self, "@_h", rb_hash_new());
-    rb_iv_set(q->self, "@_c", rb_hash_new());
+    for (i = 0; i < 4; i++) {
+	rb_iv_set(q->self, colnamebuf[i], rb_hash_new());
+    }
     if (hstmt != SQL_NULL_HSTMT) {
 	link_stmt(q, p);
     } else {
@@ -3479,7 +3494,7 @@ make_result(VALUE dbc, SQLHSTMT hstmt, VALUE result, int mode)
     } else {
 	Data_Get_Struct(result, STMT, q);
 	retain_paraminfo_override(q, nump, paraminfo);
-	free_stmt_sub(q);
+	free_stmt_sub(q, 1);
 	if (q->dbc != dbc) {
 	    unlink_stmt(q);
 	    q->dbc = dbc;
@@ -4120,12 +4135,13 @@ dbc_transaction(VALUE self)
     rb_ary_store(a, 0, self);
     rb_ary_store(a, 1, Qnil);
     if ((ret = rb_rescue2(dbc_transbody, a, dbc_transfail, a,
-			  rb_eException)) != Qundef) {
+			  rb_eException, (VALUE) 0)) != Qundef) {
 	dbc_commit(self);
 	return ret;
     }
     ret = rb_ary_entry(a, 1);
-    rb_exc_raise(rb_exc_new3(CLASS_OF(ret), ret));
+    rb_exc_raise(rb_exc_new3(rb_obj_class(ret),
+			     rb_funcall(ret, IDto_s, 0, 0)));
     return Qnil;
 }
 
@@ -5406,7 +5422,7 @@ stmt_drop(VALUE self)
 	q->hstmt = SQL_NULL_HSTMT;
 	unlink_stmt(q);
     }
-    free_stmt_sub(q);
+    free_stmt_sub(q, 1);
     return self;
 }
 
@@ -5420,7 +5436,7 @@ stmt_close(VALUE self)
 	callsql(SQL_NULL_HENV, SQL_NULL_HDBC, q->hstmt,
 		SQLFreeStmt(q->hstmt, SQL_CLOSE), "SQLFreeStmt(SQL_CLOSE)");
     }
-    free_stmt_sub(q);
+    free_stmt_sub(q, 1);
     return self;
 }
 
@@ -6077,16 +6093,20 @@ do_fetch(STMT *q, int mode)
 		q->colvals = ALLOC_N(VALUE, 4 * q->ncols);
 		if (q->colvals != NULL) {
 		    VALUE cname;
+		    VALUE colbuf[4];
 
 		    for (i = 0; i < 4 * q->ncols; i++) {
 			q->colvals[i] = Qnil;
 		    }
-		    res = rb_iv_get(q->self, "@_c");
-		    if (res == Qnil) {
-			res = rb_hash_new();
-			rb_iv_set(q->self, "@_c", res);
+		    for (i = 0; i < 4; i++) {
+			colbuf[i] = rb_iv_get(q->self, colnamebuf[i]);
+			if (colbuf[i] == Qnil) {
+			    res = rb_hash_new();
+			    rb_iv_set(q->self, colnamebuf[i], res);
+			}
 		    }
 		    for (i = 0; i < 4 * q->ncols; i++) {
+			res = colbuf[i / q->ncols];
 			cname = rb_tainted_str_new2(q->colnames[i]);
 #ifdef USE_RB_ENC
 			rb_enc_associate(cname, rb_enc);
@@ -6885,6 +6905,7 @@ stmt_more_results(VALUE self)
 	return Qfalse;
     case SQL_SUCCESS:
     case SQL_SUCCESS_WITH_INFO:
+	free_stmt_sub(q, 0);
 	make_result(q->dbc, q->hstmt, self, 0);
 	break;
     default:
@@ -6910,6 +6931,7 @@ stmt_prep_int(int argc, VALUE *argv, VALUE self, int mode)
 
     if (rb_obj_is_kind_of(self, Cstmt) == Qtrue) {
 	Data_Get_Struct(self, STMT, q);
+	free_stmt_sub(q, 0);
 	if (q->hstmt == SQL_NULL_HSTMT) {
 	    if (!succeeded(SQL_NULL_HENV, p->hdbc, q->hstmt,
 			   SQLAllocStmt(p->hdbc, &q->hstmt),
@@ -8045,7 +8067,8 @@ static struct {
 #endif
     { &IDparse, "parse" },
     { &IDutc, "utc" },
-    { &IDlocal, "local" }
+    { &IDlocal, "local" },
+    { &IDto_s, "to_s" }
 };
 
 /*

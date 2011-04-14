@@ -1,12 +1,12 @@
 /*
  * ODBC-Ruby binding
- * Copyright (c) 2001-2010 Christian Werner <chw@ch-werner.de>
+ * Copyright (c) 2001-2011 Christian Werner <chw@ch-werner.de>
  *
  * See the file "COPYING" for information on usage
  * and redistribution of this file and for a
  * DISCLAIMER OF ALL WARRANTIES.
  *
- * $Id: odbc.c,v 1.5 2010/09/16 06:47:00 chw Exp chw $
+ * $Id: odbc.c,v 1.6 2011/01/15 08:02:55 chw Exp chw $
  */
 
 #undef  UNICODE

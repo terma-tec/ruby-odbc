@@ -1,6 +1,15 @@
 ODBC binding for Ruby
 ---------------------
 
+Sat Jan 15 2011 version 0.99994 released
+
+	* fixed column key caching, thanks Sean Noonan for bug report
+
+Fri Dec 24 2010 version 0.99993 released
+
+	* fixed error reporting in Database.transaction method,
+	  thanks Shane Emmons for bug report and testing
+
 Thu Sep 16 2010 version 0.99992 released
 
 	* ODBC::Statement.each/each_hash now output arrays when
